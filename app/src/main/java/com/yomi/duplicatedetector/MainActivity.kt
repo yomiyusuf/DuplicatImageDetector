@@ -23,5 +23,4 @@ class MainActivity : AppCompatActivity() {
         viewModel.findDuplicateImages("pictures")
     }
 
-
 }

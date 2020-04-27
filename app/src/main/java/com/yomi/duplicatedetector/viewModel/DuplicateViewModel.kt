@@ -1,10 +1,12 @@
 package com.yomi.duplicatedetector.viewModel
 
 import android.app.Application
+import android.content.res.AssetFileDescriptor
+import android.content.res.AssetManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
+import com.yomi.duplicatedetector.model.DuplicatesData
 import com.yomi.duplicatedetector.model.FileMeta
-import com.yomi.duplicatedetector.model.DuplicateData
 import java.io.File
 import java.io.IOException
 import java.math.BigInteger
@@ -13,56 +15,61 @@ import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 import java.util.*
 
+
 /**
  * Created by Yomi Joseph on 2020-04-26.
  */
 class DuplicateViewModel(val app: Application): AndroidViewModel(app) {
 
-    val duplicateData by lazy { MutableLiveData<MutableList<DuplicateData>>() }
+    val duplicateData by lazy { MutableLiveData<MutableList<DuplicatesData>>() }
 
-    fun findDuplicateImages(directory: String) {
-        val previouslySeenImages = HashMap<String, FileMeta>()
+    fun findDuplicateImages(startingDirectory: String) {
+        val filesSeenAlready = HashMap<String, FileMeta>()
         val stack = ArrayDeque<String>()
-        app.assets.list(directory)?.forEach {
+        app.assets.list(startingDirectory)?.forEach {
             stack.push(it)
         }
 
-        val duplicates = ArrayList<DuplicateData>()
+        val duplicates = ArrayList<DuplicatesData>()
 
         while (!stack.isEmpty()) {
 
             val currentPath = stack.pop()
             val currentFile = File(currentPath.toString())
 
-            val fileHash: String
-            try {
-                fileHash = sampleHashFile(directory, currentPath)
-            } catch (e: IOException) {
-
-                e.printStackTrace()
-                continue
-            } catch (e: NoSuchAlgorithmException) {
-                e.printStackTrace()
-                continue
-            }
-
-            val currentLastEditedTime = currentFile.lastModified()
-
-            if (previouslySeenImages.containsKey(fileHash)) {
-
-                val fileInfo = previouslySeenImages[fileHash]
-                val existingLastEditedTime = fileInfo!!.timeLastEdited
-                val existingPath = fileInfo.path
-
-                if (currentLastEditedTime > existingLastEditedTime) {
-                    duplicates.add(DuplicateData(currentPath, existingPath))
-                } else {
-                    duplicates.add(DuplicateData(existingPath, currentPath))
-                    previouslySeenImages[fileHash] = FileMeta(currentLastEditedTime, currentPath)
-                }
+            if (isDirectory(startingDirectory, currentPath, app.assets)) {
+                app.assets.list("$startingDirectory/$currentPath")?.forEach { stack.push("$currentPath/$it") }
             } else {
-                previouslySeenImages[fileHash] = FileMeta(currentLastEditedTime, currentPath)
+                val fileHash: String
+                try {
+                    fileHash = sampleHashFile(startingDirectory, currentPath)
+                } catch (e: IOException) {
+                    e.printStackTrace()
+                    continue
+                } catch (e: NoSuchAlgorithmException) {
+                    e.printStackTrace()
+                    continue
+                }
+
+                val currentLastEditedTime = currentFile.lastModified()
+
+                if (filesSeenAlready.containsKey(fileHash)) {
+
+                    val fileInfo = filesSeenAlready[fileHash]
+                    val existingLastEditedTime = fileInfo!!.timeLastEdited
+                    val existingPath = fileInfo.path
+
+                    if (currentLastEditedTime > existingLastEditedTime) {
+                        duplicates.add(DuplicatesData(currentPath, existingPath))
+                    } else {
+                        duplicates.add(DuplicatesData(existingPath, currentPath))
+                        filesSeenAlready[fileHash] = FileMeta(currentLastEditedTime, currentPath)
+                    }
+                } else {
+                    filesSeenAlready[fileHash] = FileMeta(currentLastEditedTime, currentPath)
+                }
             }
+
         }
         duplicateData.value =  duplicates
     }
@@ -94,5 +101,27 @@ class DuplicateViewModel(val app: Application): AndroidViewModel(app) {
             }
             return BigInteger(1, digest.digest()).toString(16)
         }
+    }
+
+    /**
+     * Method to check if the path is a directory [otherwise, a file].
+     * As the Asset folder is not part of the Android file system, we do not have access to the File API
+     * for this operation.
+     *
+     *
+     * @param path Path to check
+     * @param am AssetManager
+     */
+    private fun isDirectory(startDirectory: String, path: String, am: AssetManager): Boolean {
+        //return !path.contains(".")
+        var exceptionMessage = ""
+        try {
+            val desc: AssetFileDescriptor = am.openFd("$startDirectory/$path") // Always throws exception: for directories and for files
+            desc.close() // Never executes
+        } catch (e: Exception) {
+            exceptionMessage = e.toString()
+        }
+
+        return exceptionMessage.endsWith(path)
     }
 }
