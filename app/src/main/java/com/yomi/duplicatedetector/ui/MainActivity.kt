@@ -13,6 +13,7 @@ import kotlinx.android.synthetic.main.activity_main.*
 class MainActivity : AppCompatActivity() {
 
     private lateinit var listAdapter: DuplicatesListAdapter
+    private val startingDirectory = "pictures"
 
     private lateinit var viewModel: DuplicateViewModel
 
@@ -20,12 +21,12 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        //listAdapter = DuplicatesListAdapter(arrayListOf())
+        listAdapter = DuplicatesListAdapter(startingDirectory, arrayListOf())
         viewModel = ViewModelProviders.of(this).get(DuplicateViewModel::class.java)
 
-        //initRecyclerView()
+        initRecyclerView()
         registerObservers()
-        viewModel.getDuplicateImages(assets, "pictures")
+        viewModel.getDuplicateImages(assets, startingDirectory)
     }
 
     private fun initRecyclerView() {
@@ -37,7 +38,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun registerObservers() {
         viewModel.duplicateData.observe(this, Observer {
-            Log.e("DUP", it.toString())
             listAdapter.updateData(it)
         })
     }

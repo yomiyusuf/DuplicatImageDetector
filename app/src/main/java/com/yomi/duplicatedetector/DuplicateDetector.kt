@@ -2,9 +2,7 @@ package com.yomi.duplicatedetector
 
 import android.content.res.AssetFileDescriptor
 import android.content.res.AssetManager
-import android.util.Log
 import androidx.lifecycle.MutableLiveData
-import com.yomi.duplicatedetector.model.DuplicatesData
 import java.io.IOException
 import java.math.BigInteger
 import java.security.DigestInputStream
@@ -32,8 +30,6 @@ class DuplicateDetector {
         val previouslySeenFiles = HashMap<String, MutableList<String>>()
         val stack = ArrayDeque<String>()
         assetManager.list(startingDirectory)?.forEach { stack.push(it) }
-
-        val duplicates = ArrayList<DuplicatesData>()
 
         while (!stack.isEmpty()) {
 

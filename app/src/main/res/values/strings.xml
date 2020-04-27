@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">DuplicateDetector</string>
+    <string name="duplicate_number">%1$s duplicates</string>
 </resources>
