@@ -1,8 +1,9 @@
 package com.yomi.duplicatedetector
 
-import android.content.res.AssetFileDescriptor
 import android.content.res.AssetManager
 import androidx.lifecycle.MutableLiveData
+import com.yomi.duplicatedetector.core.allFiles
+import kotlinx.coroutines.*
 import java.io.IOException
 import java.math.BigInteger
 import java.security.DigestInputStream
@@ -24,43 +25,36 @@ class DuplicateDetector {
      *
      * @param assetManager
      * @param startingDirectory the directory within assets directory the search will start from.
-     * use empty string("") to use the assets' root. Though this is highly discouraged as Android saves some other files in the assets root
+     * use empty string("") to use the assets' root. Though this is highly discouraged as Android
+     * saves some other files in the assets root
+     * Run in a coroutine in case there is delay in completion due to large number of files
      */
-    fun findDuplicateImages(assetManager: AssetManager, startingDirectory: String) {
-        val previouslySeenFiles = HashMap<String, MutableList<String>>()
-        val stack = ArrayDeque<String>()
-        assetManager.list(startingDirectory)?.forEach { stack.push(it) }
-
-        while (!stack.isEmpty()) {
-
-            val currentPath = stack.pop()
-
-            if (isDirectory(assetManager, startingDirectory, currentPath)) {
-                assetManager.list("$startingDirectory/$currentPath")?.forEach { stack.push("$currentPath/$it") }
-            } else {
+    suspend fun findDuplicateImages(assetManager: AssetManager, startingDirectory: String) {
+        withContext(Dispatchers.IO){
+            val previouslySeenFiles = HashMap<String, MutableList<String>>()
+            val allFiles = assetManager.allFiles(startingDirectory)
+            allFiles.forEach {
                 val fileHash: String
                 try {
-                    fileHash = sampleHashFile(assetManager, startingDirectory, currentPath)
+                    fileHash = sampleHashFile(assetManager, it)
+
+                    if (previouslySeenFiles.containsKey(fileHash)) {
+                        //add the new path to paths list of the existing entry
+                        previouslySeenFiles[fileHash]?.add(it)
+                    } else {
+                        //add a new entry
+                        previouslySeenFiles[fileHash] = mutableListOf(it)
+                    }
                 } catch (e: IOException) {
                     e.printStackTrace()
-                    continue
                 } catch (e: NoSuchAlgorithmException) {
                     e.printStackTrace()
-                    continue
-                }
-
-                if (previouslySeenFiles.containsKey(fileHash)) {
-                    //add the new path to paths list of the existing entry
-                    previouslySeenFiles[fileHash]?.add(currentPath)
-                } else {
-                    //add a new entry
-                    previouslySeenFiles[fileHash] = mutableListOf(currentPath)
                 }
             }
+            //Filter for entries with multiple paths
+            val filtered = previouslySeenFiles.filter { it.value.size > 1 }
+            duplicateData.postValue(filtered.map { it.value })
         }
-        //Filter for entries with multiple paths
-        val filtered = previouslySeenFiles.filter { it.value.size > 1 }
-        duplicateData.value =  filtered.map {it.value}
     }
 
     private val SAMPLE_SIZE = 4000
@@ -73,17 +67,14 @@ class DuplicateDetector {
      *
      *
      *@param assetManager
-     * @param startingDirectory
      * @param path
      */
     @Throws(IOException::class, NoSuchAlgorithmException::class)
-    private fun sampleHashFile(assetManager: AssetManager, startingDirectory:String, path: String): String {
+    private fun sampleHashFile(assetManager: AssetManager, path: String): String {
 
-        val imageFullPath = "$startingDirectory/$path"
+        val totalBytes = assetManager.openFd(path).length
 
-        val totalBytes = assetManager.openFd(imageFullPath).length
-
-        assetManager.open(imageFullPath).use { inputStream ->
+        assetManager.open(path).use { inputStream ->
             val digest = MessageDigest.getInstance("SHA-512")
             val digestInputStream = DigestInputStream(inputStream, digest)
 
@@ -103,24 +94,5 @@ class DuplicateDetector {
         }
     }
 
-    /**
-     * Method to check if the path is a directory [otherwise, a file].
-     * As the Asset folder is not part of the Android file system, we do not have access to the File API
-     * for this operation.
-     *
-     *
-     * @param path Path to check
-     * @param am AssetManager
-     */
-    private fun isDirectory(am: AssetManager, startDirectory: String, path: String): Boolean {
-        var exceptionMessage = ""
-        try {
-            val desc: AssetFileDescriptor = am.openFd("$startDirectory/$path") // Always throws exception: for directories and for files
-            desc.close()
-        } catch (e: Exception) {
-            exceptionMessage = e.toString()
-        }
 
-        return exceptionMessage.endsWith(path)
-    }
 }

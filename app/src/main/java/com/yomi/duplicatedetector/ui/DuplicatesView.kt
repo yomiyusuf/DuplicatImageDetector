@@ -3,7 +3,6 @@ package com.yomi.duplicatedetector.ui
 import android.content.Context
 import android.os.Build
 import android.util.AttributeSet
-import android.view.ContextThemeWrapper
 import android.view.LayoutInflater
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -15,6 +14,8 @@ import kotlinx.android.synthetic.main.item_duplicate_view.view.*
 
 /**
  * Created by Yomi Joseph on 2020-04-27.
+ *
+ * Custom view used to encapsulate the display of multicated images
  */
 class DuplicatesView: LinearLayout {
     constructor(context: Context) : super(context)
@@ -28,7 +29,10 @@ class DuplicatesView: LinearLayout {
             .inflate(R.layout.item_duplicate_view, this, true)
     }
 
-    fun setView(startingDirectory: String, duplicates: List<String>) {
+    /**
+     * @param duplicates list of strings that represent the path of the images relative to assets root
+     */
+    fun setView(duplicates: List<String>) {
         resetView()
         val duplicateNumber = String.format(resources.getString(R.string.duplicate_number), duplicates.size.toString())
         txt_duplicates_number.text = duplicateNumber
@@ -48,7 +52,7 @@ class DuplicatesView: LinearLayout {
             val image = ImageView(context)
             Glide
                 .with(this)
-                .load("file:///android_asset/$startingDirectory/$it")
+                .load("file:///android_asset/$it")
                 .apply(RequestOptions().override(500, 500))
                 .into(image)
 
