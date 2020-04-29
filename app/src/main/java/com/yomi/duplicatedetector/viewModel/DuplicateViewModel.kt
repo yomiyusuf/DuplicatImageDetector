@@ -3,7 +3,7 @@ package com.yomi.duplicatedetector.viewModel
 import android.content.res.AssetManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.yomi.duplicatedetector.DuplicateDetector
+import com.yomi.duplicatedetector.core.DuplicateDetector
 import kotlinx.coroutines.launch
 
 /**
@@ -11,7 +11,8 @@ import kotlinx.coroutines.launch
  */
 class DuplicateViewModel: ViewModel() {
 
-    private val duplicateDetector = DuplicateDetector()
+    private val duplicateDetector =
+        DuplicateDetector()
 
     val duplicateData = duplicateDetector.duplicateData
 

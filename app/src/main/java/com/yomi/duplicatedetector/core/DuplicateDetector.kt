@@ -1,10 +1,10 @@
-package com.yomi.duplicatedetector
+package com.yomi.duplicatedetector.core
 
 import android.content.res.AssetManager
 import androidx.lifecycle.MutableLiveData
-import com.yomi.duplicatedetector.core.allFiles
 import kotlinx.coroutines.*
 import java.io.IOException
+import java.lang.Exception
 import java.math.BigInteger
 import java.security.DigestInputStream
 import java.security.MessageDigest
@@ -47,7 +47,7 @@ class DuplicateDetector {
                     }
                 } catch (e: IOException) {
                     e.printStackTrace()
-                } catch (e: NoSuchAlgorithmException) {
+                } catch (e: Exception) {
                     e.printStackTrace()
                 }
             }
@@ -57,13 +57,13 @@ class DuplicateDetector {
         }
     }
 
-    private val SAMPLE_SIZE = 4000
+    private val BLOCK_SIZE = 4000
 
     /**
      *
      * This method creates a fingerprint for the file at the startingDirectory/path
      * This is done by taking 3 samples at the beginning, middle and end of the file. The sample size is
-     * set as SAMPLE_SIZE which should be the block size of the file system.
+     * set as BLOCK_SIZE which should be the block size of the file system.
      *
      *
      *@param assetManager
@@ -78,15 +78,15 @@ class DuplicateDetector {
             val digest = MessageDigest.getInstance("SHA-512")
             val digestInputStream = DigestInputStream(inputStream, digest)
 
-            if (totalBytes < SAMPLE_SIZE * 3) {
+            if (totalBytes < BLOCK_SIZE * 3) {
                 val bytes = ByteArray(totalBytes.toInt())
                 digestInputStream.read(bytes)
             } else {
-                val bytes = ByteArray(SAMPLE_SIZE * 3)
-                val numBytesBetweenSamples = (totalBytes - SAMPLE_SIZE * 3) / 2
+                val bytes = ByteArray(BLOCK_SIZE * 3)
+                val numBytesBetweenSamples = (totalBytes - BLOCK_SIZE * 3) / 2
 
                 for (n in 0..2) {
-                    digestInputStream.read(bytes, n * SAMPLE_SIZE, SAMPLE_SIZE)
+                    digestInputStream.read(bytes, n * BLOCK_SIZE, BLOCK_SIZE)
                     digestInputStream.skip(numBytesBetweenSamples)
                 }
             }

@@ -11,6 +11,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.yomi.duplicatedetector.R
 import kotlinx.android.synthetic.main.item_duplicate_view.view.*
+import java.lang.Exception
 
 /**
  * Created by Yomi Joseph on 2020-04-27.
@@ -38,28 +39,37 @@ class DuplicatesView: LinearLayout {
         txt_duplicates_number.text = duplicateNumber
 
         duplicates.forEach {
-            //create TextView
-            val pathText = TextView(context).apply {
-                text = it
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    setTextAppearance(R.style.defaultText_body)
-                } else {
-                    setTextAppearance(context, R.style.defaultText_body)
-                }
-            }
+            //Add views to respective containers
+            images_paths_container.addView(createTextView(it))
+            images_container.addView(createImageView(it))
+        }
+    }
 
-            //create ImageView
-            val image = ImageView(context)
+    private fun createTextView(path: String): TextView {
+        return TextView(context).apply {
+            text = path
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                setTextAppearance(R.style.defaultText_body)
+            } else {
+                setTextAppearance(context, R.style.defaultText_body)
+            }
+        }
+    }
+
+    private fun createImageView(path: String): ImageView {
+        val image = ImageView(context)
+        try {
             Glide
                 .with(this)
-                .load("file:///android_asset/$it")
+                .load("file:///android_asset/$path")
                 .apply(RequestOptions().override(500, 500))
                 .into(image)
-
-            //Add views to respective containers
-            images_paths_container.addView(pathText)
-            images_container.addView(image)
+        } catch (e: Exception) {
+            //Could not load image
+            e.printStackTrace()
         }
+
+        return image
     }
 
     private fun resetView() {
